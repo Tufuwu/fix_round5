@@ -10,43 +10,42 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
+
     strategy:
       matrix:
-        python-version: [3.8, 3.9, pypy-3.8]
-        include:
-          - python-version: 3.8
-            tox-env: py38
-          - python-version: 3.9
-            tox-env: py39
-          - python-version: pypy-3.8
-            tox-env: pypy-3.8
-          - python-version: 3.9
-            tox-env: lint
+        python-version: [3.8, 3.9]
 
     steps:
     - uses: actions/checkout@v2
-
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v2
       with:
         python-version: ${{ matrix.python-version }}
-
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        if [ -f requirements-dev.txt ]; then pip install -U -r requirements-dev.txt; fi
-        pip install .
-        pip install tox
-
+        pip install -r requirements.txt
     - name: Run tests
       run: |
-        tox -e ${{ matrix.tox-env }}
-
-    - name: Cache pip
-      uses: actions/cache@v3
+        if [ "${{ matrix.python-version }}" == "3.8" ]; then
+          nosetests
+        else
+          nosetests --with-coverage --cover-package=discogs_client --cover-xml --cover-xml-file=coverage.xml
+    - name: Convert coverage to lcov
+      if: ${{ matrix.python-version == '3.9' }}
+      run: |
+        pip install xmltodict
+        python -c "
+import xmltodict, json
+with open('coverage.xml') as f:
+    data = xmltodict.parse(f.read())
+with open('coverage.lcov', 'w') as f:
+    f.write(json.dumps(data))
+        "
+    - name: Upload coverage to Coveralls
+      if: ${{ matrix.python-version == '3.9' }}
+      uses: coverallsapp/github-action@v1
       with:
-        path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements-dev.txt') }}
-        restore-keys: |
-          ${{ runner.os }}-pip-
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        path-to-lcov: ./coverage.lcov
