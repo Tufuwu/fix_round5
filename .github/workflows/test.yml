@@ -2,64 +2,47 @@ name: Python package
 
 on:
   push:
-    branches:
-      - main
+    tags:
+      - '*'
   pull_request:
     branches:
-      - main
+      - '**'
 
 jobs:
-  build:
+  test:
     runs-on: ubuntu-22.04
     strategy:
       matrix:
-        python-version: [3.8, 3.9]
-        h5py-version: ['==3.8', '==2.10', '==3.0', '==3.1']
-        exclude:
-          - python-version: 3.8
-            h5py-version: '==3.0'
-          - python-version: 3.8
-            h5py-version: '==3.1'
+        python-version: [3.8, 3.9, 3.10]
+
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v4
       with:
         python-version: ${{ matrix.python-version }}
     - name: Install dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y gcc libhdf5-serial-dev libblas-dev liblapack-dev libatlas-base-dev libquadmath0
-        python -m pip install --upgrade pip
-        pip install -U Cython  # Ensure Cython is installed before h5py
-        pip install -U numpy
-        pip install h5py${{ matrix.h5py-version }}
-        pip install -r requirements_tests.txt
-        pip install .
-        pip install -e examples/example_hdf5storage_marshaller_plugin
+      run: pip install -e .[testing]
     - name: Test with pytest
-      run: |
-        pytest
+      run: pytest tests
 
-  build-ppc64le:
+  deploy:
     runs-on: ubuntu-22.04
+    needs: test
+    if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') }}
     steps:
-    - uses: actions/checkout@v2
-    - name: Set up Python 3.9
-      uses: actions/setup-python@v2
+    - uses: actions/checkout@v3
+    - name: Set up Python 3.10
+      uses: actions/setup-python@v4
       with:
-        python-version: 3.9
+        python-version: 3.10
     - name: Install dependencies
+      run: pip install -e .[testing]
+    - name: Publish to PyPI
+      env:
+        TWINE_USERNAME: ${{ secrets.TWINE_USERNAME }}
+        TWINE_PASSWORD: ${{ secrets.TWINE_PASSWORD }}
       run: |
-        sudo apt-get update
-        sudo apt-get install -y gcc libhdf5-serial-dev libblas-dev liblapack-dev libatlas-base-dev libquadmath0
-        python -m pip install --upgrade pip
-        pip install -U Cython  # Ensure Cython is installed before h5py
-        pip install -U numpy
-        pip install h5py==2.10
-        pip install -r requirements_tests.txt
-        pip install .
-        pip install -e examples/example_hdf5storage_marshaller_plugin
-    - name: Test with pytest
-      run: |
-        pytest
+        pip install twine
+        python setup.py sdist bdist_wheel
+        twine upload dist/*
