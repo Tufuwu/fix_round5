@@ -1,64 +1,68 @@
-# crazy-compiler standard excludes
-/projectlogo.png
-/docs/_build/
-*.[1-9]
+# Project-specific generated files
+docs/build/
 
-# editor artefacts
-*~
-.#*
-\#*#
-.*.swp
+bench/results/
+bench/env/
+bench/trio/
 
-#  build artefacts
-/.sconf_temp
-/.sconsign.*
-/config.h
-/config.log
-/config.status
-/autom4te*.cache
-/options.cache
-/stamp-h1
-
-# C, C++ build artefacts
-*.[oa]
-*.l[oa]
-*.al
-.libs
-.deps
-*.so
-*.so.[0-9]*
-*.rej
-
-*.dll
-.idea
-
-# Python build artefacts
-/build/
-/dist/
-/_venv/
+# Byte-compiled / optimized / DLL files / editor temp files
+__pycache__/
 *.py[cod]
-*.egg
-*.egg-info
-*.egg-link
+*~
+\#*
+.#*
+*.swp
 
-/nosetests.xml
-/.cache
-/.coverage
-/.pytest_cache
-/.tox
-/.achievements
-/.installed.cfg
-/.ropeproject
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+/build/
+/develop-eggs/
+/dist/
+/eggs/
+/lib/
+/lib64/
+/parts/
+/sdist/
+/var/
+*.egg-info/
+.installed.cfg
+*.egg
+/.pybuild
+
+# Installer logs
+pip-log.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.venv/
+.coverage
+.coverage.*
+.cache
+.pytest_cache/
+nosetests.xml
+coverage.xml
+
+# Translations
+*.mo
 
 # Mr Developer
-/.mr.developer.cfg
-/.project
-/.pydevproject
+.mr.developer.cfg
+.project
+.pydevproject
 
-# OS generated files
-*.DS_[sS]Store*
-ehthumbs.db
-Icon?
-Thumbs.db
-*.pid
-._.**~
+# Rope
+.ropeproject
+
+# Django stuff:
+*.log
+*.pot
+
+# Sphinx documentation
+doc/_build/
+
+# pyenv
+.python-version

@@ -1,41 +1,37 @@
-name: Python package
+name: CI
 
 on:
   push:
-    branches:
-      - main
+    branches-ignore:
+      - /^dependabot/.*/
   pull_request:
-    branches:
-      - main
+    branches-ignore:
+      - /^dependabot/.*/
 
 jobs:
   build:
-    runs-on: ubuntu-latest
-
+    runs-on: ubuntu-22.04
     strategy:
       matrix:
-        python-version: [3.8, '3.x']
+        python-version: [3.8, 3.9]
+        include:
+          - python-version: 3.8
+            env: OLD_CRYPTOGRAPHY=3.8.1
 
     steps:
     - uses: actions/checkout@v2
-
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v2
       with:
         python-version: ${{ matrix.python-version }}
-
     - name: Install dependencies
       run: |
-        python -m pip install --upgrade pip
-        pip install -e .
-        pip install -r tests/requirements.txt
-
-    - name: Install lib2to3
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y python3-lib2to3
-
-    - name: Test with pytest
-      run: |
-        pip install pytest
-        pytest -vv
+        if [ -n "${{ matrix.env.OLD_CRYPTOGRAPHY }}" ]; then
+          pip install cryptography==${{ matrix.env.OLD_CRYPTOGRAPHY }}
+        else
+          pip install cryptography
+        fi
+    - name: Make ci.sh executable
+      run: chmod +x ./ci.sh
+    - name: Run script
+      run: ./ci.sh
