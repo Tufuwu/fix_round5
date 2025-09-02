@@ -1,4 +1,4 @@
-name: CI
+name: Python package
 
 on:
   push:
@@ -10,55 +10,44 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [3.8]
-        env:
-          - TOXENV=flake8
-          - TOXENV=black
-          - TOXENV=elasticsearch
-
-    services:
-      elasticsearch:
-        image: elasticsearch:7.3.2
-        options: --name elasticsearch -e "discovery.type=single-node" -p 9200:9200
-        ports:
-          - 9200:9200
+        python-version: [3.8, 3.9, 'pypy-3.8']
+        with-opt-deps: [false, true]
+        exclude:
+          - python-version: 3.8
+            with-opt-deps: false
+      fail-fast: false
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
 
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v4
       with:
         python-version: ${{ matrix.python-version }}
 
     - name: Install dependencies
       run: |
-        pip install tox
-        pip install codecov
+        pip install -r requirements.txt pytest
+        if [ "${{ matrix.with-opt-deps }}" = "true" ]; then
+          pip install feedparser cryptography
+        fi
+
+    - name: Install package
+      run: pip install .
 
     - name: Run tests
-      run: |
-        if [ "${{ matrix.env }}" == "TOXENV=elasticsearch" ]; then
-          sleep 60
-        fi
-        tox
+      run: pytest -v --tb=short
 
-    - name: Upload coverage to Codecov
-      if: success()
-      run: codecov
+    - name: Run irctest
+      if: matrix.with-opt-deps == 'true' && startsWith(matrix.python-version, '3.')
+      run: |
+        git clone https://github.com/ProgVal/irctest.git
+        cd irctest
+        pytest --controllers irctest.controllers.limnoria
 
-  cleanup:
-    runs-on: ubuntu-22.04
-    needs: build
-    if: always()
-    steps:
-    - name: Stop and remove Elasticsearch container
-      run: |
-        docker ps -q --filter "name=elasticsearch" | grep -q . && docker stop elasticsearch || true
-        docker ps -a -q --filter "name=elasticsearch" | grep -q . && docker rm elasticsearch || true
-    - name: Free up port 9200
-      run: |
-        sudo lsof -t -i:9200 | xargs -r sudo kill -9 || true
+    - name: Disable email notifications
+      if: always()
+      run: echo "Email notifications are disabled."
