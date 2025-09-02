@@ -1,25 +1,21 @@
-.PHONY: docs test build publish clean
+SRC=src tests
 
-init:
-	poetry install
+.PHONY: check-format
+check-format:
+	black --check ${SRC}
 
-docs:
-	@touch docs/api.rst  # ensure api docs always rebuilt
-	make -C docs/ html
+.PHONY: check-tests
+check-tests:
+	pytest --cov=src --cov-report=term --cov-report=html
 
-test:
-	tox --parallel auto
+.PHONY: check-lint
+check-lint:
+	mypy ${SRC}
+	flake8 ${SRC}
 
-test-examples:
-	pytest examples/
+.PHONY: check
+check: | check-lint check-tests check-format
 
-coverage:
-	pytest --live --cov=snug --cov-report html --cov-report term
-
-clean:
-	make -C docs/ clean
-	find . | grep -E "(__pycache__|\.pyc|\.pyo$$)" | xargs rm -rf
-
+.PHONY: format
 format:
-	black src tests
-	isort src tests
+	black ${SRC}
