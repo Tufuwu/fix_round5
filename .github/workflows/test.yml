@@ -1,40 +1,56 @@
-name: Python package
+name: CI
 
 on:
   push:
     branches:
       - main
-  pull_request:
-    branches:
-      - main
+      - dev
+    tags:
+      - '*'
 
 jobs:
   test:
     runs-on: ubuntu-latest
-
     strategy:
       matrix:
-        python-version: [3.9, 3.8]
-
+        python-version: [3.8, 3.9]
+        toxenv: [coverage, mypy, style, docs, dist-test]
     steps:
-    - uses: actions/checkout@v2
-
+    - uses: actions/checkout@v3
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v2
       with:
         python-version: ${{ matrix.python-version }}
-
     - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install numpy==1.21.0  # Pin numpy to a specific version to avoid compatibility issues
-        pip install . -r requirements.txt
-        pip install pytest
-
-    - name: Install additional dependencies
-      run: |
-        pip install matplotlib==3.4.2  # Pin matplotlib to a version compatible with numpy 1.21.0
-
+      run: pip install ".[build]" tox
+    - name: Clean build directory
+      run: python setup.py clean --all
     - name: Run tests
+      run: tox -e ${{ matrix.toxenv }}
+    - name: Upload coverage to Coveralls
+      if: ${{ matrix.toxenv == 'coverage' }}
+      run: coveralls
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/dev' || startsWith(github.ref, 'refs/tags/'))
+    steps:
+    - uses: actions/checkout@v3
+    - name: Set up Python 3.8
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3.8
+    - name: Install dependencies
+      run: pip install ".[build]"
+    - name: Build package
+      run: python setup.py sdist bdist_wheel
+    - name: Publish to PyPI
+      env:
+        TWINE_USERNAME: __token__
+        TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
       run: |
-        pytest
+        if [[ ${{ github.ref }} == refs/heads/dev ]]; then
+          twine upload --skip-existing dist/* --repository-url https://test.pypi.org/legacy/
+        else
+          twine upload --skip-existing dist/*
