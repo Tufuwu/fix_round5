@@ -1,2 +1,3 @@
-include license.bsd license.lgpl readme.rst
-recursive-include docs *.html *.css *.png *.gif *.js
+graft src
+prune src/tokenizer/__pycache__
+prune src/tokenizer/.mypy_cache
