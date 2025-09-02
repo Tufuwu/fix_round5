@@ -10,29 +10,45 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-22.04
-
+    runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [3.8, pypy-3.8]
+        python-version: [3.8, 3.9, pypy-3.8]
+        django-version: ['Django>=2.2,<2.3', 'Django>=3.0,<3.2', 'Django>=3.2,<3.3']
+
+    services:
+      mongodb:
+        image: mongo:latest
+        ports:
+          - 27017:27017
+        options: > 
+          --health-cmd "mongo --eval 'db.runCommand({ ping: 1 })'" 
+          --health-interval 10s 
+          --health-timeout 5s 
+          --health-retries 5
 
     steps:
     - uses: actions/checkout@v2
+
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v2
       with:
         python-version: ${{ matrix.python-version }}
+
+    - name: Install Poetry
+      run: pip install poetry
+
     - name: Install dependencies
       run: |
-        python setup.py develop
-    - name: Test with pytest
+        poetry install -q
+        poetry run pip install -q ${{ matrix.django-version }}
+
+    - name: Wait for MongoDB to be ready
       run: |
-        python -m pytest
-    - name: Notify Slack
-      if: failure()
-      uses: 8398a7/action-slack@v3
-      with:
-        status: ${{ job.status }}
-        fields: repo,message,commit,author,action,eventName,ref,workflow,job,took
-      env:
-        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        until nc -z localhost 27017; do
+          echo "Waiting for MongoDB..."
+          sleep 1
+        done
+
+    - name: Run tests
+      run: poetry run python -m pytest
