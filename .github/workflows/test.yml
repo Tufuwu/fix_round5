@@ -13,48 +13,40 @@ jobs:
     runs-on: ubuntu-22.04
     strategy:
       matrix:
+        python-version: [3.8, 3.9]
         include:
-          - python-version: 3.8
-            env: 
-              TOXENV: placement
-          - python-version: pypy-3.8
-            env: 
-              TOXENV: pypy-3.8
-          - python-version: 3.8
-            env: 
-              TOXENV: py38
-          - python-version: 3.8
-            env: 
-              TOXENV: py38-pytest
-          - python-version: 3.8
-            env: 
-              TOXENV: py38-failskip
-          - python-version: 3.8
-            env: 
-              TOXENV: py38-limit
-          - python-version: 3.8
-            env: 
-              TOXENV: py38-prefix
-          - python-version: 3.8
-            env: 
-              TOXENV: pep8
+          - python-version: 3.9
+            env: TOXENV=mypy
 
     steps:
     - uses: actions/checkout@v2
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v2
       with:
-        python-version: ${{ matrix.python-version || '3.8' }}
+        python-version: ${{ matrix.python-version }}
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install tox
-    - name: Make test-failskip.sh executable
-      if: matrix.env.TOXENV == 'py38-failskip'
-      run: chmod +x ./test-failskip.sh
+        pip install tox-travis codecov
     - name: Run tests
-      env:
-        TOXENV: ${{ matrix.env.TOXENV }}
-      run: tox
+      run: tox -v
+    - name: Upload coverage to Codecov
+      if: success()
+      uses: codecov/codecov-action@v2
       with:
-        allowlist_externals: ./test-failskip.sh
+        token: ${{ secrets.CODECOV_TOKEN }}
+
+  notify:
+    if: ${{ github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-22.04
+    steps:
+    - name: Notify IRC
+      uses: peter-evans/irc-notify@v1
+      with:
+        server: chat.freenode.net
+        channel: '#certbot-devel'
+        secure: true
+      env:
+        IRC_NOTIFY_ON: failure
+        IRC_NOTIFY_ON_CANCEL: never
+        IRC_NOTIFY_ON_SUCCESS: never
